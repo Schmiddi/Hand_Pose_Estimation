@@ -9,11 +9,11 @@ def info_gain(S, Sl, Sr):
        goes to the left, Sr is the subset that goest to the right
        based on the split criteria at this node
 
-       S - numpy array, rows are variables, columns are samples
+       S - numpy array, columns are variables, rows are samples
     """
     #S is useless, S = Sl + Sr
 
-    infgain = entropy(S) - ( np.shape(Sl)[1] / np.shape(S)[1] * entropy(Sl) + np.shape(Sr)[1] / np.size(S) * entropy(Sr))
+    infgain = entropy(S) - ( np.shape(Sl)[0] / np.shape(S)[0] * entropy(Sl) + np.shape(Sr)[0] / np.shape(S)[0] * entropy(Sr))
     return infgain
 
 def entropy(S):
@@ -23,4 +23,4 @@ def entropy(S):
     return H
 
 def covariant(S):
-    return np.cov(S)
+    return np.cov(S, rowvar=0)
