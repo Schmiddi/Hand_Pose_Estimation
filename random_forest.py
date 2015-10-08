@@ -11,18 +11,18 @@ def test_tree():
   new_array=[]
   random.seed(1)
   for i in xrange(n_samples*n_features):
+
+
     new_array.append(random.random())
 
   new_array = np.array(new_array).reshape((n_features,n_samples))
 
   tree_node, estimation_node = create_tree(new_array)
-
-
 def create_tree (D_n):
   random_index = random.sample(xrange(D_n.shape[1]), D_n.shape[1]/2)
   n=range(0,D_n.shape[1])
   U_n=D_n[ :,random_index]
-  E_n=D_n[ :,set(n)-set(random_index)]
+  E_n=D_n[ :,list(set(n)-set(random_index))]
   tree_node=[]
   estimation_node=[]
   max_h = np.log2(D_n.shape[1])
@@ -78,3 +78,5 @@ def create_node(U_n,E_n,h,max_h,tree_node,estimation_node):
 
   return tree_node, estimation_node
 
+
+test_tree()
