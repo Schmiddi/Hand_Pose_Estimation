@@ -2,7 +2,7 @@ import sys
 import glob
 import os
 import numpy as np
-import ipdb as pdb
+#import ipdb as pdb
 
 
 def info_gain(S, Sl, Sr):
@@ -14,7 +14,7 @@ def info_gain(S, Sl, Sr):
     """
     #S is useless, S = Sl + Sr
 
-    infgain = entropy(S) - ( np.shape(Sl)[1] / np.shape(S)[1] * entropy(Sl) + np.shape(Sr)[1] / np.shape(S)[1] * entropy(Sr))
+    infgain = entropy(S) - ( np.shape(Sl)[1] / float(np.shape(S)[1]) * entropy(Sl) + np.shape(Sr)[1] / float(np.shape(S)[1]) * entropy(Sr))
     return infgain
 
 def entropy(S):
@@ -25,4 +25,4 @@ def entropy(S):
     return H
 
 def covariant(S):
-    return np.cov(S, rowvar=1)
+    return np.matrix(np.cov(S, rowvar=1))
