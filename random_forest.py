@@ -32,6 +32,7 @@ def test_tree():
 def create_forest(D_n, D_n_labels, num_trees=10):
     forest = []
     for i in xrange(num_trees):
+        print "Creating tree %d\r"%i
         forest.append(create_tree (D_n, D_n_labels))
     
     return forest
