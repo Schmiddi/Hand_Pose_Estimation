@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 from sklearn.decomposition import IncrementalPCA
 from sklearn import svm
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.externals import joblib
 from sklearn import preprocessing
 
@@ -173,6 +173,31 @@ def train_forest():
 # in comparism SVR 
 # [1, 0.0068497991726219872, 0.044224760442203054]
 
+def train_sklearn_forest():
+    
+    errors = []
+    feature = 1
+    X = Xall[0:m,:]
+    y = yall[0:m, feature]    
+    ycv = yall[m+1:, feature]
+
+    # train a random forest with different number of trees and plot error
+    for trees in [1, 10, 20, 50, 100]:
+        print "training forest %d" % trees
+        clf = RandomForestRegressor(n_estimators=trees)
+        clf.fit(X, y)    
+        pred = clf.predict(X)
+        err = pred_error(y, pred)
+        
+        predcv = clf.predict(Xcv)
+        errcv = pred_error(ycv, predcv)
+        
+        print [trees, feature, err, errcv]    
+        
+        errors.append((trees, feature, err, errcv))
+        models.append(clf)
+
+
 if __name__ == '__main__':
-    train_forest()
+    train_sklearn_forest()
 
