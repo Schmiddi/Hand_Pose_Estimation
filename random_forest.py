@@ -29,11 +29,20 @@ def test_tree():
     print classify_w_forest(forest, new_array[:,6]),n_labels[0,6]
     print "hello world"
 
-def create_forest(D_n, D_n_labels, num_trees=10):
+'''
+    D_n: rows = features, col = samples (Feature vector: x = [0,1]^d)
+    D_n_labels: row=labels, col = samples (Label vector: y =  R^q)
+    num_trees: number of trees to generate (default: 10)
+    t_s: step size for the thresholds (default: 0.01)
+    m_0: amount of structure data we maximal should use for the next construction step (default: 1e7)
+    k_n: minimum amount of estimations examples per node (default: 30)
+    p: predefined probability for feature selection (default: 0.2)
+'''
+def create_forest(D_n, D_n_labels, num_trees=10, t_s = 0.01, k_n=30, m_0=1e7, p=0.2):
     forest = []
     for i in xrange(num_trees):
         print "Creating tree %d\r"%i
-        forest.append(create_tree (D_n, D_n_labels))
+        forest.append(create_tree (D_n, D_n_labels, t_s, k_n, m_0, p))
     
     return forest
 
@@ -64,9 +73,15 @@ def classify_w_tree(tree, sample):
             i = tree_node[i][3]
         
     
-# D_n: rows = features, col = samples (Feature vector: x = [0,1]^d)
-# D_n_labels: row=labels, col = samples (Label vector: y =  R^q)
-def create_tree (D_n, D_n_labels):
+'''
+    D_n: rows = features, col = samples (Feature vector: x = [0,1]^d)
+    D_n_labels: row=labels, col = samples (Label vector: y =  R^q)
+    t_s: step size for the thresholds (default: 0.01)
+    m_0: amount of structure data we maximal should use for the next construction step (default: 1e7)
+    k_n: minimum amount of estimations examples per node (default: 30)
+    p: predefined probability for feature selection (default: 0.2)
+'''
+def create_tree (D_n, D_n_labels, t_s = 0.01, k_n=30, m_0=1e7, p=0.2):
     # Split the data set D_n into two parts
     # Put floor(n/2) random samples into U_n,
     # and the remaining ceil(n/2) samples in E_n 
@@ -82,20 +97,21 @@ def create_tree (D_n, D_n_labels):
     estimation_node = []
     # Set the maximal height of a tree
     max_h = np.log2(D_n.shape[1])
-    return create_node(U_n, U_n_labels, E_n, E_n_labels, 0, max_h, tree_node, estimation_node)
+    return create_node(U_n, U_n_labels, E_n, E_n_labels, 0, max_h, tree_node, estimation_node, t_s, k_n, m_0, p)
 
-def create_node(U_n, U_n_labels, E_n, E_n_labels, h, max_h, tree_node, estimation_node):
+
+'''
+    t_s: step size for the thresholds (default: 0.01)
+    m_0: amount of structure data we maximal should use for the next construction step (default: 1e7)
+    k_n: minimum amount of estimations examples per node (default: 30)
+    p: predefined probability for feature selection (default: 0.2)
+'''
+def create_node(U_n, U_n_labels, E_n, E_n_labels, h, max_h, tree_node, estimation_node, t_s = 0.01, k_n=30, m_0=1e7, p=0.2):
     # Define tuning parameters
     ## Define candidate thresholds from 0 to 1 in 0.1 steps
-    T = np.arange(0, 1, 0.3)
-    ## p>0, predefined probability
-    p = 0.4
+    T = np.arange(0, 1, t_s)
     ## Number of distinct features we select for tree construction
     s = 1 + np.random.binomial(U_n.shape[0], p)
-    ## Amount of structure data we maximal should use for the next construction step
-    m_0 = 100 
-    ## Minimum amount of estimations examples per node
-    k_n = 3
     ## Get s random indices
     s_index = random.sample(xrange(U_n.shape[0]), s)
     ## Calculate the number of structure data to use for the next construction step
@@ -153,9 +169,9 @@ def create_node(U_n, U_n_labels, E_n, E_n_labels, h, max_h, tree_node, estimatio
     # Node [ best feature, best threshold, index left node, index right node]
     node = [max_feature, max_t, index_node + 1, None]
     tree_node.append(node)
-    tree_node, estimation_node = create_node(U_1, U_1_labels, E_1, E_1_labels, h, max_h, tree_node, estimation_node)
+    tree_node, estimation_node = create_node(U_1, U_1_labels, E_1, E_1_labels, h, max_h, tree_node, estimation_node, t_s, k_n, m_0, p)
     tree_node[index_node][3] = len(tree_node)
-    tree_node, estimation_node = create_node(U_2, U_2_labels, E_2, E_2_labels, h, max_h, tree_node, estimation_node)
+    tree_node, estimation_node = create_node(U_2, U_2_labels, E_2, E_2_labels, h, max_h, tree_node, estimation_node, t_s, k_n, m_0, p)
 
     return tree_node, estimation_node
 
