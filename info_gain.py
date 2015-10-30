@@ -1,6 +1,7 @@
 import sys
 import glob
 import os
+#import warnings
 import numpy as np
 #import ipdb as pdb
 
@@ -21,8 +22,22 @@ def entropy(S):
     """ computes the entropy for S
     """
     #pdb.set_trace()
-    H = 0.5 * np.log(np.linalg.det(covariant(S))) + 0.5 * np.shape(S)[1] * (1 + 1.83787706641) # ln(2pi) = 1.8378..
+    #warnings.simplefilter("error", RuntimeWarning)
+    det = np.linalg.det(covariant(S))
+    if det == 0:
+        det = 1e-20
+    #try:
+    H = 0.5 * np.log(det) + 0.5 * np.shape(S)[1] * (1 + 1.83787706641) # ln(2pi) = 1.8378..
+    #except RuntimeWarning:
+    #    print "Warning"
     return H
 
 def covariant(S):
-    return np.matrix(np.cov(S, rowvar=1))
+    if S.size==0:
+        covariance = np.zeros([1,1])
+    elif S.size == 1:
+        covariance = np.matrix(S)
+    else:
+        covariance = np.matrix(np.cov(S, rowvar=1)) 
+        
+    return covariance
