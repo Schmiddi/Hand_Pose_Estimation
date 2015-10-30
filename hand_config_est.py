@@ -44,15 +44,19 @@ def load_data(start, end):
     return np.array(data), np.array(labels)
 
 # load training data to Xall and labels to yall, only if variables dont exists
-try:
-    Xall
-    yall
-except NameError:
-    Xall, yall = load_data(0, 3000)
-    
-    # normalize both x and y
-    preprocessing.scale(Xall, copy=False)
-    preprocessing.scale(yall, copy=False)
+#try:
+#    Xall
+#    yall
+#except NameError:
+Xall, yall = load_data(0, 3000)
+
+# normalize both x and y
+#preprocessing.scale(Xall, copy=False)
+
+scaler = preprocessing.MinMaxScaler().fit(Xall)
+Xall = scaler.transform(Xall)
+scaler = preprocessing.MinMaxScaler().fit(yall)
+yall = scaler.transform(yall)
 
 # this is the cross validation set, from used to end
 Xcv = Xall[used+1:, :]
@@ -103,7 +107,12 @@ def tune(feature):
 def pred_error(y, y_pred):
     #err = np.mean(abs((y-pred)/y))
     # average squared difference
-    return np.mean(np.square(y-y_pred))    
+#    y_raw = y*scaler.std_[1] + scaler.mean_[1]
+#    ypred_raw = y_pred*scaler.std_[1] + scaler.mean_[1]
+
+    y_raw = (y - scaler.min_[1]) / scaler.scale_[1]
+    ypred_raw = (y_pred - scaler.min_[1]) / scaler.scale_[1]
+    return np.mean(np.square(y_raw-ypred_raw))    
 
 def train_svr():
     #C, gamma = tune(11)
@@ -182,9 +191,9 @@ def train_sklearn_forest():
     ycv = yall[m+1:, feature]
 
     # train a random forest with different number of trees and plot error
-    for trees in [1, 10, 20, 50, 100]:
+    for trees in [1, 10, 20, 50]:
         print "training forest %d" % trees
-        clf = RandomForestRegressor(n_estimators=trees)
+        clf = RandomForestRegressor(n_estimators=trees, max_depth=20, )
         clf.fit(X, y)    
         pred = clf.predict(X)
         err = pred_error(y, pred)
@@ -199,5 +208,5 @@ def train_sklearn_forest():
 
 
 if __name__ == '__main__':
-    train_sklearn_forest()
+    train_forest()
 
