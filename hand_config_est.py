@@ -48,18 +48,19 @@ def load_data(start, end):
 #    Xall
 #    yall
 #except NameError:
-Xall, yall = load_data(0, 3000)
+xRaw, yRaw = load_data(0, 3000)
 
 # normalize both x and y
 #preprocessing.scale(Xall, copy=False)
 
-scaler = preprocessing.MinMaxScaler().fit(Xall)
-Xall = scaler.transform(Xall)
-scaler = preprocessing.MinMaxScaler().fit(yall)
-yall = scaler.transform(yall)
+scaler = preprocessing.MinMaxScaler().fit(xRaw)
+Xall = scaler.transform(xRaw)
+scaler = preprocessing.MinMaxScaler().fit(yRaw)
+yall = scaler.transform(yRaw)
 
 # this is the cross validation set, from used to end
 Xcv = Xall[used+1:, :]
+ycvRaw = yRaw[used+1,1]
 ycv = yall[used+1:, 1]
 
 #plt.scatter(yall[:,1], yall[:,2])
@@ -150,22 +151,23 @@ def train_forest():
     
     errors = []
     feature = 1
+    
     X = Xall[0:m,:]
-    y = yall[0:m, feature]    
-    ycv = yall[m+1:, feature]
+    y = yRaw[0:m, feature] # RAW
+    ycv = yRaw[m+1:, feature] # RAW
 
     # train a random forest with different number of trees and plot error
     for trees in [1, 10, 20, 50, 100]:
         print "training forest %d" % trees
-        forest = random_forest.create_forest(X.transpose(), y.reshape((1, -1)), trees)
+        forest = random_forest.create_forest(X, y, trees,100,10)
         
         print "predict"
-        pred = np.array([random_forest.classify_w_forest(forest, X.transpose()[:, i]) for i in range(m)])
-        predcv = np.array([random_forest.classify_w_forest(forest, Xall.transpose()[:, i]) for i in range(m+1,3000)])
+        pred = np.array([random_forest.classify_w_forest(forest, X[i,:]) for i in range(m)])
+        predcv = np.array([random_forest.classify_w_forest(forest, Xall[i,:]) for i in range(m+1,3000)])
         #predcv = random_forest.classify_w_forest(forest, Xcv.transpose()).transpose()
         
-        err = pred_error(y, pred)
-        errcv = pred_error(ycv, predcv)
+        err = np.mean(np.square(y-pred))
+        errcv = np.mean(np.square(ycv-predcv))
         print [trees, feature, err, errcv]
         errors.append((trees, feature, err, errcv))
    
