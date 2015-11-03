@@ -13,25 +13,25 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.externals import joblib
 from sklearn import preprocessing
 
-datadir = "ReducedFeatures/Features1x1_nod"
+#datadir = "ReducedFeatures/Features1x1_nod"
+datadir = "NormalizedSample10krandom_reducedfeatures_1x1"
 labeldir = "TrainData"
 modeldir = "."
-used = 2000
+training_size = 0.66
 model = "SVR"
 
 try:
     datadir = sys.argv[1]
     labeldir = sys.argv[2]
     modeldir = sys.argv[3]
-    used = int(sys.argv[4])
-    model = sys.argv[5]
+    model = sys.argv[4]
 except IndexError:
-    print "Usage: hand_config_est.py datadir labeldir modeldir nooftrainingsamples model"
+    print "Usage: hand_config_est.py datadir labeldir modeldir model"
     print "Defaults used"
 
 #ipca = joblib.load("%s/pca.pkl"%pcadir)
 
-def load_data(start, end):
+def load_data_simple(start, end):
     """ load data from files in datadir and labeldir, from start to end
     shuffle samples randomly    
     """
@@ -41,26 +41,52 @@ def load_data(start, end):
         data.append(np.loadtxt("%s/%d-0.txt" % (datadir,i), dtype=float))
         raw_label = np.loadtxt("%s/%d.txt" % (labeldir,i), dtype=float, )
         labels.append(raw_label.flatten())
+    print "Data loaded (simple)"
     return np.array(data), np.array(labels)
+
+
+def load_data(files, limit=0):
+    """ load data from files in datadir and labeldir, from start to end
+    shuffle samples randomly    
+    """
+    if not limit:
+        limit = len(files)
+    data = np.zeros((limit, 300))
+    labels = np.zeros((limit, 60))
+    files = np.random.permutation(files)
+    for i, fname in enumerate([files[i] for i in range(limit)]): 
+        data[i,:] = np.loadtxt("%s/%s" % (datadir, fname), dtype=float)
+        numbers = fname.split('-')
+        raw_label = np.loadtxt("%s/%s.txt" % (labeldir,numbers[0]), dtype=float, )
+        labels[i,:] = raw_label.flatten()
+    print "Data loaded"
+    return np.array(data), np.array(labels)
+
 
 # load training data to Xall and labels to yall, only if variables dont exists
 #try:
 #    Xall
 #    yall
 #except NameError:
-xRaw, yRaw = load_data(0, 3000)
+#xRaw, yRaw = load_data_simple(0, 3000)
+xRaw, yRaw = load_data(os.listdir(datadir))
 
 # normalize both x and y
 #preprocessing.scale(Xall, copy=False)
 
-scaler = preprocessing.MinMaxScaler().fit(xRaw)
+#scalerfunc=preprocessing.MinMaxScaler
+scalerfunc=preprocessing.StandardScaler
+
+scaler = scalerfunc().fit(xRaw)
 Xall = scaler.transform(xRaw)
-scaler = preprocessing.MinMaxScaler().fit(yRaw)
+scaler = scalerfunc().fit(yRaw)
 yall = scaler.transform(yRaw)
+
+used = int(np.shape(xRaw)[0]*training_size)
 
 # this is the cross validation set, from used to end
 Xcv = Xall[used+1:, :]
-ycvRaw = yRaw[used+1,1]
+#ycvRaw = yRaw[used+1:,1]
 ycv = yall[used+1:, 1]
 
 #plt.scatter(yall[:,1], yall[:,2])
@@ -78,11 +104,11 @@ def tune(feature):
     """
     performance = []
     #vals = [0.1, 0.3, 1.0, 3.0, 10.0]
-    vals = [0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0]
+    vals = [0.01, 0.1, 1.0, 10.0, 100.0]
     for C in vals:
-        C = C*10
+        C = C*1000
         for gamma in vals:
-            gamma = gamma / 10
+            gamma = gamma / 100
             X = Xall[0:m,:]
             y = yall[0:m, feature]
             ycv = yall[used+1:, feature]
@@ -108,18 +134,23 @@ def tune(feature):
 def pred_error(y, y_pred):
     #err = np.mean(abs((y-pred)/y))
     # average squared difference
-#    y_raw = y*scaler.std_[1] + scaler.mean_[1]
-#    ypred_raw = y_pred*scaler.std_[1] + scaler.mean_[1]
 
-    y_raw = (y - scaler.min_[1]) / scaler.scale_[1]
-    ypred_raw = (y_pred - scaler.min_[1]) / scaler.scale_[1]
+    if scalerfunc == preprocessing.MinMaxScaler:
+        y_raw = (y - scaler.min_[1]) / scaler.scale_[1]
+        ypred_raw = (y_pred - scaler.min_[1]) / scaler.scale_[1]
+    elif scalerfunc == preprocessing.StandardScaler:
+        y_raw = y*scaler.std_[1] + scaler.mean_[1]
+        ypred_raw = y_pred*scaler.std_[1] + scaler.mean_[1]
+    else:
+        assert False
+
     return np.mean(np.square(y_raw-ypred_raw))    
 
 def train_svr():
     #C, gamma = tune(11)
     # previously found best values
-    C = 1000.0
-    gamma = 0.001
+    C = 10000.0
+    gamma = 0.0001
     
     X = Xall[0:m]
     models = []
@@ -153,23 +184,25 @@ def train_forest():
     feature = 1
     
     X = Xall[0:m,:]
-    y = yRaw[0:m, feature] # RAW
-    ycv = yRaw[m+1:, feature] # RAW
-
-    # train a random forest with different number of trees and plot error
-    for trees in [1, 10, 20, 50, 100]:
-        print "training forest %d" % trees
-        forest = random_forest.create_forest(X, y, trees,100,10)
-        
-        print "predict"
-        pred = np.array([random_forest.classify_w_forest(forest, X[i,:]) for i in range(m)])
-        predcv = np.array([random_forest.classify_w_forest(forest, Xall[i,:]) for i in range(m+1,3000)])
-        #predcv = random_forest.classify_w_forest(forest, Xcv.transpose()).transpose()
-        
-        err = np.mean(np.square(y-pred))
-        errcv = np.mean(np.square(ycv-predcv))
-        print [trees, feature, err, errcv]
-        errors.append((trees, feature, err, errcv))
+    
+    for feature in range(np.shape(yall)[1]):    
+        y = yall[0:m, feature] # RAW
+        ycv = yall[m+1:, feature] # RAW
+    
+        # train a random forest with different number of trees and plot error
+        for trees in [10]:
+            print "training forest %d" % trees
+            forest = random_forest.create_forest(X, y, trees,100,10)
+            
+            print "predict"
+            pred = np.array([random_forest.classify_w_forest(forest, X[i,:]) for i in range(m)])
+            predcv = np.array([random_forest.classify_w_forest(forest, Xall[m+1+i,:]) for i in range(len(ycv))])
+            #predcv = random_forest.classify_w_forest(forest, Xcv.transpose()).transpose()
+            
+            err = pred_error(y, pred)
+            errcv = pred_error(ycv, predcv)
+            print [trees, feature, err, errcv]
+            errors.append((trees, feature, err, errcv))
    
 
 # currently  the prediction errors computed above gave:
@@ -189,26 +222,29 @@ def train_sklearn_forest():
     errors = []
     feature = 1
     X = Xall[0:m,:]
-    y = yall[0:m, feature]    
-    ycv = yall[m+1:, feature]
-
-    # train a random forest with different number of trees and plot error
-    for trees in [1, 10, 20, 50]:
-        print "training forest %d" % trees
-        clf = RandomForestRegressor(n_estimators=trees, max_depth=20, )
-        clf.fit(X, y)    
-        pred = clf.predict(X)
-        err = pred_error(y, pred)
-        
-        predcv = clf.predict(Xcv)
-        errcv = pred_error(ycv, predcv)
-        
-        print [trees, feature, err, errcv]    
-        
-        errors.append((trees, feature, err, errcv))
-        models.append(clf)
+    
+    for feature in range(np.shape(yall)[1]):    
+        y = yall[0:m, feature] # RAW
+        ycv = yall[m+1:, feature] # RAW
+    
+        # train a random forest with different number of trees and plot error
+        for trees in [20]:
+            #print "training forest %d" % trees
+            clf = RandomForestRegressor(n_estimators=trees)
+            clf.fit(X, y)    
+            pred = clf.predict(X)
+            err = pred_error(y, pred)
+            
+            predcv = clf.predict(Xcv)
+            errcv = pred_error(ycv, predcv)
+            
+            print [trees, feature, err, errcv]    
+            
+            errors.append((trees, feature, err, errcv))
+            models.append(clf)
 
 
 if __name__ == '__main__':
     train_forest()
+    #train_svr()
 
