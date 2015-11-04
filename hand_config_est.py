@@ -6,6 +6,7 @@ import numpy as np
 import ipdb as pdb
 import operator
 import matplotlib.pyplot as plt
+import pickle
 
 from sklearn.decomposition import IncrementalPCA
 from sklearn import svm
@@ -85,9 +86,9 @@ yall = scaler.transform(yRaw)
 used = int(np.shape(xRaw)[0]*training_size)
 
 # this is the cross validation set, from used to end
-Xcv = Xall[used+1:, :]
-#ycvRaw = yRaw[used+1:,1]
-ycv = yall[used+1:, 1]
+Xcv = Xall[used:, :]
+#ycvRaw = yRaw[used:,1]
+ycv = yall[used:, 1]
 
 #plt.scatter(yall[:,1], yall[:,2])
 
@@ -97,39 +98,52 @@ gamma = 0.1 # gamma param for gaussian kernel, inverse of variance
 errors = []
 models = []
 
-def tune(feature):
+def tune(features, train_size=used, cv_size=0, Cexp=1000.0, gammaexp=0.001):
     """
     trains SVR with different gamma and C param and chose the combinantion
     that results in lowest error on cross validation set
     """
-    performance = []
+    performance = {}
+    if cv_size <= 0:
+        cv_size = np.shape(Xall)[0]-train_size
     #vals = [0.1, 0.3, 1.0, 3.0, 10.0]
-    vals = [0.01, 0.1, 1.0, 10.0, 100.0]
-    for C in vals:
-        C = C*1000
-        for gamma in vals:
-            gamma = gamma / 100
-            X = Xall[0:m,:]
-            y = yall[0:m, feature]
-            ycv = yall[used+1:, feature]
-        
-            clf = svm.SVR(C=C, gamma=gamma)
-            clf.fit(X, y)
+    vals = [0.1, 1.0, 10.0]
+    for prog_i, feature in enumerate(features):
+        for C in vals:
+            C = C*Cexp
+            for gamma in vals:
+                gamma = gamma*gammaexp
+                X = Xall[:train_size,:]
+                y = yall[:train_size, feature]
+                Xcv = Xall[train_size:train_size+cv_size,:]
+                ycv = yall[train_size:train_size+cv_size, feature]
             
-            pred = clf.predict(X)
-            err = np.mean(np.square(np.subtract(y, pred)))
-        
-            predcv = clf.predict(Xcv)
-            errcv = np.mean(np.square(np.subtract(ycv, predcv)))
-        
-            performance.append([m, C, gamma, err, errcv])
-            print performance[-1]
+                clf = svm.SVR(C=C, gamma=gamma)
+                clf.fit(X, y)
+                
+                pred = clf.predict(X)
+                err = pred_error(y, pred)
             
-    opt_dex = min(range(len(performance)), key=lambda x: performance[x][4])
-    opt = performance[opt_dex]
+                predcv = clf.predict(Xcv)
+                errcv = pred_error(ycv, predcv)
+            
+                if (C, gamma) not in performance.keys():
+                    performance[(C, gamma)] = []
+                performance[(C, gamma)].append(errcv)
+                
+                print [feature, C, gamma, err, errcv]
     
-    print "optimal: ", opt
-    return opt[1], opt[2]
+        allopt = [min(performance.iteritems(), key=lambda x: x[1][i])[0] for i in range(prog_i+1)]
+        print "optimal for each feature"
+        for i in range(prog_i+1):
+            print features[i], allopt[i], performance[allopt[i]][i]
+        
+        avg_performance = {key: np.mean(x) for key, x in performance.iteritems()}
+        opt = min(avg_performance.iteritems(), key=operator.itemgetter(1))[0]
+        opt_error = avg_performance[opt]
+        
+        print "optimal: ", opt, "error ", opt_error
+    return allopt, opt
 
 def pred_error(y, y_pred):
     #err = np.mean(abs((y-pred)/y))
@@ -159,7 +173,7 @@ def train_svr():
     #train an SVR for all features
     for feature in range(np.shape(yall)[1]):
         y = yall[0:m, feature]
-        ycv = yall[m+1:, feature]
+        ycv = yall[m:, feature]
         
         clf = svm.SVR(C=C, gamma=gamma)
         clf.fit(X, y)    
@@ -187,7 +201,7 @@ def train_forest():
     
     for feature in range(np.shape(yall)[1]):    
         y = yall[0:m, feature] # RAW
-        ycv = yall[m+1:, feature] # RAW
+        ycv = yall[m:, feature] # RAW
     
         # train a random forest with different number of trees and plot error
         for trees in [10]:
@@ -196,7 +210,7 @@ def train_forest():
             
             print "predict"
             pred = np.array([random_forest.classify_w_forest(forest, X[i,:]) for i in range(m)])
-            predcv = np.array([random_forest.classify_w_forest(forest, Xall[m+1+i,:]) for i in range(len(ycv))])
+            predcv = np.array([random_forest.classify_w_forest(forest, Xall[m+i,:]) for i in range(len(ycv))])
             #predcv = random_forest.classify_w_forest(forest, Xcv.transpose()).transpose()
             
             err = pred_error(y, pred)
@@ -225,7 +239,7 @@ def train_sklearn_forest():
     
     for feature in range(np.shape(yall)[1]):    
         y = yall[0:m, feature] # RAW
-        ycv = yall[m+1:, feature] # RAW
+        ycv = yall[m:, feature] # RAW
     
         # train a random forest with different number of trees and plot error
         for trees in [20]:
@@ -245,6 +259,11 @@ def train_sklearn_forest():
 
 
 if __name__ == '__main__':
-    train_forest()
+    res = tune(range(60), 6000, 2000)
+    pickle.dump( res, open( "tune_result.p", "wb" ) )
+    
+    #train_sklearn_forest()
+    #train_forest()
+    
     #train_svr()
 
