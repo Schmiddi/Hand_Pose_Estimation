@@ -25,7 +25,7 @@ def load_data(start, end, step):
 		partial_data = []
 		for fname in fnames[batch_start:batch_end]:
 			print "Loading image", fname
-			partial_data.append(np.loadtxt("%s/%s" % (datadir,fname), dtype=int))
+			partial_data.append(np.loadtxt("%s/%s" % (datadir,fname)))
 			angle = int(fname.split('-')[1].split('.')[0])
 			labels.append(angle)
 		partial_data = ipca.transform(partial_data).tolist()
@@ -48,6 +48,8 @@ for i in xrange(0,len(labels)):
 	tot_diff += abs(angle_diff)	
 	errors.append(abs(angle_diff))
 
-print errors
+fres = open("angle-errors", "w")
+for i in range(used):
+	fres.write(fnames[i] + " " + str(predict[i]) + "\n")
 print "Average error is %.2f degrees" % (tot_diff/len(labels))
 

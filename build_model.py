@@ -7,6 +7,7 @@ import numpy as np
 from sklearn.decomposition import IncrementalPCA
 from sklearn import svm
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.externals import joblib
 
 datadir = sys.argv[1]
@@ -14,6 +15,7 @@ pcadir = sys.argv[2]
 modeldir = sys.argv[3]
 used = int(sys.argv[4])
 model = sys.argv[5]
+angle_step = int(sys.argv[6])
 step = 50
 
 ipca = joblib.load("%s/pca.pkl"%pcadir)
@@ -27,8 +29,8 @@ def load_data(start, end, step):
 		partial_data = []
 		for fname in fnames[batch_start:batch_end]:	
 			print "Loading image", fname
-			for angle in xrange(0,360,5):
-				partial_data.append(np.loadtxt("%s/%s-%d.txt" % (datadir,fname,angle), dtype=int))
+			for angle in xrange(0,360,angle_step):
+				partial_data.append(np.loadtxt("%s/%s-%d.txt" % (datadir,fname,angle)))
 				labels.append(angle)
 		partial_data = ipca.transform(partial_data).tolist()
 		data += partial_data
@@ -45,6 +47,9 @@ if model == "SVR":
 if model == "DF":
 	print "Using DF"
 	clf = RandomForestClassifier(n_estimators=10)
+if model == "DFR":
+	print "Using DFR"
+	clf = RandomForestRegressor(n_estimators=10)
 else:
 	clf = svm.LinearSVC()
 clf.fit(data, labels)  
