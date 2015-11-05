@@ -18,7 +18,7 @@ from sklearn import preprocessing
 datadir = "NormalizedSample10krandom_reducedfeatures_1x1"
 labeldir = "TrainData"
 modeldir = "."
-training_size = 0.66
+training_size = 0.7
 model = "SVR"
 
 try:
@@ -63,60 +63,59 @@ def load_data(files, limit=0):
     print "Data loaded"
     return np.array(data), np.array(labels)
 
-
 # load training data to Xall and labels to yall, only if variables dont exists
 #try:
 #    Xall
 #    yall
 #except NameError:
 #xRaw, yRaw = load_data_simple(0, 3000)
-xRaw, yRaw = load_data(os.listdir(datadir))
 
-# normalize both x and y
-#preprocessing.scale(Xall, copy=False)
+#filter file names that correspond to samples from sample range
+train_samples = np.array(range(3000))
+np.random.shuffle(train_samples)
+train_samples = train_samples[:int(3000*training_size)]
+
+files_tr = [f for f in os.listdir(datadir) if int(f.split('-')[0]) in train_samples]
+files_cv = [f for f in os.listdir(datadir) if int(f.split('-')[0]) not in train_samples]
+
+xRaw, yRaw = load_data(files_tr)
+XAllcv, yAllcv = load_data(files_cv)
 
 #scalerfunc=preprocessing.MinMaxScaler
 scalerfunc=preprocessing.StandardScaler
+scaler_x = scalerfunc().fit(xRaw)
+XAlltr = scaler_x.transform(xRaw)
+XAllcv = scaler_x.transform(XAllcv)
 
-scaler = scalerfunc().fit(xRaw)
-Xall = scaler.transform(xRaw)
 scaler = scalerfunc().fit(yRaw)
-yall = scaler.transform(yRaw)
+yAlltr = scaler.transform(yRaw)
+yAllcv = scaler.transform(yAllcv)
 
-used = int(np.shape(xRaw)[0]*training_size)
-
-# this is the cross validation set, from used to end
-Xcv = Xall[used:, :]
-#ycvRaw = yRaw[used:,1]
-ycv = yall[used:, 1]
 
 #plt.scatter(yall[:,1], yall[:,2])
 
-m = used # number of training samples
 C = 10.0 # C param for SVR
 gamma = 0.1 # gamma param for gaussian kernel, inverse of variance
 errors = []
 models = []
 
-def tune(features, train_size=used, cv_size=0, Cexp=1000.0, gammaexp=0.001):
+def tune(features, Cexp=1000.0, gammaexp=0.001):
     """
     trains SVR with different gamma and C param and chose the combinantion
     that results in lowest error on cross validation set
     """
     performance = {}
-    if cv_size <= 0:
-        cv_size = np.shape(Xall)[0]-train_size
     #vals = [0.1, 0.3, 1.0, 3.0, 10.0]
     vals = [0.1, 1.0, 10.0]
+    X = XAlltr
+    Xcv = XAllcv
     for prog_i, feature in enumerate(features):
         for C in vals:
             C = C*Cexp
             for gamma in vals:
                 gamma = gamma*gammaexp
-                X = Xall[:train_size,:]
-                y = yall[:train_size, feature]
-                Xcv = Xall[train_size:train_size+cv_size,:]
-                ycv = yall[train_size:train_size+cv_size, feature]
+                y = yAlltr[:, feature]
+                ycv = yAllcv[:, feature]
             
                 clf = svm.SVR(C=C, gamma=gamma)
                 clf.fit(X, y)
@@ -166,14 +165,15 @@ def train_svr():
     C = 10000.0
     gamma = 0.0001
     
-    X = Xall[0:m]
+    X = XAlltr
+    Xcv = XAllcv
     models = []
     errors = []
     
     #train an SVR for all features
-    for feature in range(np.shape(yall)[1]):
-        y = yall[0:m, feature]
-        ycv = yall[m:, feature]
+    for feature in range(np.shape(yAlltr)[1]):
+        y = yAlltr[:, feature]
+        ycv = yAllcv[:, feature]
         
         clf = svm.SVR(C=C, gamma=gamma)
         clf.fit(X, y)    
@@ -197,11 +197,12 @@ def train_forest():
     errors = []
     feature = 1
     
-    X = Xall[0:m,:]
+    X = XAlltr
+    Xcv = XAllcv
     
-    for feature in range(np.shape(yall)[1]):    
-        y = yall[0:m, feature] # RAW
-        ycv = yall[m:, feature] # RAW
+    for feature in range(np.shape(yAlltr)[1]):
+        y = yAlltr[:, feature]
+        ycv = yAllcv[:, feature]
     
         # train a random forest with different number of trees and plot error
         for trees in [10]:
@@ -209,8 +210,8 @@ def train_forest():
             forest = random_forest.create_forest(X, y, trees,100,10)
             
             print "predict"
-            pred = np.array([random_forest.classify_w_forest(forest, X[i,:]) for i in range(m)])
-            predcv = np.array([random_forest.classify_w_forest(forest, Xall[m+i,:]) for i in range(len(ycv))])
+            pred = np.array([random_forest.classify_w_forest(forest, X[i,:]) for i in range(len(y))])
+            predcv = np.array([random_forest.classify_w_forest(forest, Xcv) for i in range(len(ycv))])
             #predcv = random_forest.classify_w_forest(forest, Xcv.transpose()).transpose()
             
             err = pred_error(y, pred)
@@ -235,11 +236,14 @@ def train_sklearn_forest():
     
     errors = []
     feature = 1
-    X = Xall[0:m,:]
+    X = XAlltr
+    Xcv = XAllcv
+
+    print "training sklearn forset"
     
-    for feature in range(np.shape(yall)[1]):    
-        y = yall[0:m, feature] # RAW
-        ycv = yall[m:, feature] # RAW
+    for feature in range(np.shape(yAlltr)[1]):
+        y = yAlltr[:, feature]
+        ycv = yAllcv[:, feature]
     
         # train a random forest with different number of trees and plot error
         for trees in [20]:
@@ -259,11 +263,11 @@ def train_sklearn_forest():
 
 
 if __name__ == '__main__':
-    res = tune(range(60), 6000, 2000)
-    pickle.dump( res, open( "tune_result.p", "wb" ) )
+    #res = tune(range(60), 6000, 2000)
+    #pickle.dump( res, open( "tune_result.p", "wb" ) )
     
-    #train_sklearn_forest()
-    #train_forest()
+    train_sklearn_forest()
+    train_svr()
     
     #train_svr()
 
