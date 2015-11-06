@@ -20,6 +20,7 @@ labeldir = "TrainData"
 modeldir = "."
 training_size = 0.7
 model = "SVR"
+delimiter = '_'
 
 try:
     datadir = sys.argv[1]
@@ -57,7 +58,7 @@ def load_data(files, limit=0):
     files = np.random.permutation(files)
     for i, fname in enumerate([files[i] for i in range(limit)]): 
         data[i,:] = np.loadtxt("%s/%s" % (datadir, fname), dtype=float)
-        numbers = fname.split('-')
+        numbers = fname.split(delimiter)
         raw_label = np.loadtxt("%s/%s.txt" % (labeldir,numbers[0]), dtype=float, )
         labels[i,:] = raw_label.flatten()
     print "Data loaded"
@@ -75,10 +76,10 @@ train_samples = np.array(range(3000))
 np.random.shuffle(train_samples)
 train_samples = train_samples[:int(3000*training_size)]
 
-files_tr = [f for f in os.listdir(datadir) if int(f.split('-')[0]) in train_samples]
-files_cv = [f for f in os.listdir(datadir) if int(f.split('-')[0]) not in train_samples]
+files_tr = [f for f in os.listdir(datadir) if int(f.split(delimiter)[0]) in train_samples]
+files_cv = [f for f in os.listdir(datadir) if int(f.split(delimiter)[0]) not in train_samples]
 
-xRaw, yRaw = load_data(files_tr)
+xRaw, yRaw = load_data(files_tr, 10000)
 XAllcv, yAllcv = load_data(files_cv)
 
 #scalerfunc=preprocessing.MinMaxScaler
@@ -164,6 +165,8 @@ def train_svr():
     # previously found best values
     C = 10000.0
     gamma = 0.0001
+    
+    print "training SVR with C=%f gamma=%f" % (C, gamma)
     
     X = XAlltr
     Xcv = XAllcv
@@ -266,7 +269,7 @@ if __name__ == '__main__':
     #res = tune(range(60), 6000, 2000)
     #pickle.dump( res, open( "tune_result.p", "wb" ) )
     
-    train_sklearn_forest()
+    #train_sklearn_forest()
     train_svr()
     
     #train_svr()
