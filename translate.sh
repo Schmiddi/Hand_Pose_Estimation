@@ -4,7 +4,11 @@ for i in {0..10}; do
 for f in $1/*.d.png; do
 	echo $f
 	convert $f -trim +repage $2/trimmed.png
+<<<<<<< HEAD
 	dim=`convert $2/trimmed.png info:- | cut -d" " -f 3`
+=======
+	dim=`convert trimmed.png info:- | cut -d" " -f 3`
+>>>>>>> 149b9013930f2ddc6195d4a75a06270b7aaf3bd9
 	w=`echo $dim | cut -d"x" -f 1`
 	h=`echo $dim | cut -d"x" -f 2`
 	lpos=$(( $RANDOM % (160-$w) ))
