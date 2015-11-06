@@ -24,6 +24,9 @@ print "Step:", step
 fnames = [os.path.basename(filename)[:-6] for filename in glob.glob("%s/*-0.txt" % datadir)]
 fnames = np.random.permutation(fnames)
 
+if used == 0:
+	used = len(fnames)
+
 ipca = IncrementalPCA(n_components=n_comp)
 
 for batch_start in xrange(0, used, step):
