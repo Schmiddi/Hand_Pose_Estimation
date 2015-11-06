@@ -9,8 +9,9 @@ from sklearn import svm
 from sklearn.externals import joblib
 
 datadir = sys.argv[1]
-used = int(sys.argv[2])
+angle_step = int(sys.argv[2])
 pcadir = sys.argv[3]
+used = int(sys.argv[4])
 step = 30
 
 fnames = [os.path.basename(filename)[:-6] for filename in glob.glob("%s/*-0.txt" % datadir)]
@@ -25,8 +26,8 @@ for batch_start in xrange(0, used, step):
 	labels = []
 	for fname in fnames[batch_start:batch_end]:	
 		print "Loading image", fname
-		for angle in xrange(0,360,5):
-			data.append(np.loadtxt("%s/%s-%d.txt" % (datadir,fname,angle), dtype=int))
+		for angle in xrange(0,360,angle_step):
+			data.append(np.loadtxt("%s/%s-%d.txt" % (datadir,fname,angle)))
 			labels.append(angle)
 	print np.array(data).shape
 	ipca.partial_fit(data)
