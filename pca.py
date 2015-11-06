@@ -10,22 +10,13 @@ from sklearn import svm
 from sklearn.externals import joblib
 
 datadir = sys.argv[1]
-angle_step = int(sys.argv[2])
-pcadir = sys.argv[3]
-used = int(sys.argv[4])
+pcadir = sys.argv[2]
 n_comp = 300
-step = 30 
+step = 1000 
 
-if step*360.0/angle_step <= n_comp:   # for some reason if the number of samples per iteration is less than n_components it breaks
-	step = int(math.ceil(n_comp/(360.0/angle_step))) + 10
+fnames = [os.path.basename(filename) for filename in glob.glob("%s/*.txt" % datadir)]
 
-print "Step:", step
-
-fnames = [os.path.basename(filename)[:-6] for filename in glob.glob("%s/*-0.txt" % datadir)]
-fnames = np.random.permutation(fnames)
-
-if used == 0:
-	used = len(fnames)
+used = len(fnames)
 
 ipca = IncrementalPCA(n_components=n_comp)
 
@@ -36,9 +27,7 @@ for batch_start in xrange(0, used, step):
 	labels = []
 	for fname in fnames[batch_start:batch_end]:	
 		print "Loading image", fname
-		for angle in xrange(0,360,angle_step):
-			data.append(np.loadtxt("%s/%s-%d.txt" % (datadir,fname,angle)))
-			labels.append(angle)
+		data.append(np.loadtxt("%s/%s" % (datadir,fname)))
 	print np.array(data).shape
 	ipca.partial_fit(data)
 
