@@ -9,6 +9,7 @@ import math
 
 MIN_AREA_SIZE = 2000
 THRESH_DEPTH = 20000
+TARGET_MEDIAN = 26000
 
 def contourFilter(contour_bound):
     _, _, w, h = contour_bound[1]
@@ -110,16 +111,15 @@ def removeBackground(img):
     # print x,y,w,h
     img = img[y + (h / 2) - 80:y + (h / 2) + 80, x + (w / 2) - 80:x + (w / 2) + 80]     
 
-    # If the resulting image is not 160x160
-    rowOff = 0 if img.shape[0] == 160 else math.floor((160 - img.shape[0]) / 2.0)
-    #right = 0 if img.shape[0] == 160 else math.ceil((160 - img.shape[0]) / 2.0)
+    # Check if the img is 160x160
+    rowOff = 0 if img.shape[0] == 160 else math.ceil((160 - img.shape[0]) / 2.0)
+    colOff = 0 if img.shape[1] == 160 else math.ceil((160 - img.shape[1]) / 2.0)
     
-    colOff = 0 if img.shape[1] == 160 else math.floor((160 - img.shape[1]) / 2.0)
-    #bottom = 0 if img.shape[1] == 160 else math.floor((160 - img.shape[1]) / 2.0)
-        
-    tmp = np.zeros((160,160),dtype=np.uint16)
-    tmp[rowOff:img.shape[0]+rowOff, colOff:img.shape[1]+colOff] = img
-    img = tmp  
+    # Adjust it if it isn't, if at least one dimension is wrong
+    if rowOff != 0 or colOff != 0:
+        tmp = np.zeros((160,160),dtype=np.uint16)
+        tmp[rowOff:img.shape[0]+rowOff, colOff:img.shape[1]+colOff] = img
+        img = tmp  
     
     # ------------ Remove the wire ----------------
     # Before every part the must be at least 2 bg pixel, then remove every part which is less 
@@ -186,32 +186,12 @@ def removeBackground(img):
         if w * h < MIN_AREA_SIZE and w * h > 20:
             img[y:y + h, x:x + w] = 0
     
+    #### ------------ Adjust the depth of the image -------------
+    # Get the media of all non 0 pixels
+    handMedian = np.median(img[img!=0])
+    diff = TARGET_MEDIAN - handMedian
+    img[img!=0] += diff
     
-    
-    
-#     print "img2"
-#     cv2.imshow('img', img)
-#     cv2.waitKey(0)
-    # # Get rid of the wire
-#     kernel = np.ones((3,3),np.uint8)
-#     img = cv2.dilate(img,kernel,iterations = 1)
-    
-    
-    
-#     for contour_bound in contour_bounds:
-#         print contour_bound[1]
-#         pt1 = (contour_bound[1][0],contour_bound[1][1])
-#         pt2 = (contour_bound[1][0]+contour_bound[1][2], contour_bound[1][1]+int(contour_bound[1][3]))
-#         #cv2.rectangle(img,pt1, pt2, (255,0,255), 1) 
-#         print "Area: ", contour_bound[1][3]*contour_bound[1][2]   
-    
-    # img = cv2.medianBlur(img, 3)
-
-#     cv2.imshow('img', img)
-#     cv2.waitKey(0)
-#     img = img/256
-#     
-#     cv2.imwrite('img.jpg',img.astype(np.uint8))
     return img
 
 if __name__ == '__main__':
@@ -229,18 +209,13 @@ if __name__ == '__main__':
             cv2.imwrite('ProcessedRealImages/16bit/' + filename, img)
 
 
-#             img = img/256
-#             cv2.imshow('img', img)
-#             cv2.waitKey(0)
-#             cv2.imwrite('ProcessedRealImages/8bit/'+filename,img.astype(np.uint8))
-
 '''
     Reproduce syntetic images:
         - 160x160 - 80,80 = center of the palm [x]
         - inverted colors (black is background) [x]
         - Crop such that the hand is in the middle [x]
         - Remove the wire [x]
-        - Adjust the depth of the hand - every hand should be the same
+        - Adjust the depth of the hand - every hand should be the same [x]
         - Generate a completly black image - can can
         - maybe scale hand
 '''
