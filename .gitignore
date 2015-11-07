@@ -1,4 +1,9 @@
 *.pyc
 
+*.jpg
+*.png
+ProcessedRealImages/*
+RealImages/*
+
 TrainData/*.d.png
 TrainData/*.c.png
