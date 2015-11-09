@@ -46,17 +46,21 @@ def removeBackground(img):
     contour_bounds = filter(contourFilter, contour_bounds)
 #     print len(contour_bounds)
     
-    # If more than one large contour has been found, use the largest
+    # If more than one large contour has been found, use the one closer to the center of the image
     imax = 0
+    center = np.array([img.shape[0]/2,img.shape[1]/2])
+    
     if len(contour_bounds) > 1:
         lenCB = len(contour_bounds)
         # Choose the largest:
-        areas = np.zeros(lenCB)
+        distance = np.zeros(lenCB)
         for i in xrange(lenCB):
             # Height is more important, therefore we square it
-            areas[i] = contour_bounds[i][1][2] * contour_bounds[i][1][3] * contour_bounds[i][1][3]
+            x, y, w, h = contour_bounds[i][1]
+            contCenter = np.array([y+h/2, x+w/2])
+            distance[i] = np.linalg.norm(center - contCenter)
         
-        imax = np.argmax(areas)
+        imax = np.argmin(distance)
         
     # Remove everything outside of the contour rectangle
     x, y, w, h = contour_bounds[imax][1]
@@ -198,6 +202,7 @@ if __name__ == '__main__':
     # Create the list of all indices
     # 1 - 10, A-Y
     # Except: 3, 7, J (74), R (82), T (84), W (87)
+   
     indices = [str(i) for i in xrange(1, 11) if i not in [3, 7]] + [chr(i) for i in xrange(65, 90) if i not in [74, 82, 84, 87]]
     
     for j in xrange(1,31): #[21]:#
@@ -208,6 +213,11 @@ if __name__ == '__main__':
             img = removeBackground(img)
             cv2.imwrite('ProcessedRealImages/16bit/' + filename, img)
 
+            img[img == 0] = 20000
+            img = 65535 - img
+            img /= ((65535-20000)/750.0)
+            cv2.imwrite('ProcessedRealImages/scaled/' + filename, img)
+    
 
 '''
     Reproduce syntetic images:
@@ -216,6 +226,6 @@ if __name__ == '__main__':
         - Crop such that the hand is in the middle [x]
         - Remove the wire [x]
         - Adjust the depth of the hand - every hand should be the same [x]
-        - Generate a completly black image - can can
-        - maybe scale hand
+        - Generate a completly black image - can can [x]
+        - maybe scale hand [x]
 '''
